@@ -1,0 +1,72 @@
+package 
+{
+	import flash.display.MovieClip;
+	import flash.display.Sprite;
+	import flash.events.ProgressEvent;
+	import flash.net.Socket;
+	public class SocketExample extends MovieClip
+	{
+
+		private var socket:Socket;
+		private var text_txt:TextField = new TextField();
+		public function SocketExample()
+		{
+			socket = new Socket( );
+			// Listen for when data is received from the socket server
+			socket.addEventListener( ProgressEvent.SOCKET_DATA, onSocketData );
+			// Connect to the server
+			socket.connect( "localhost", 5331 );
+		}
+
+		private function onSocketData( event:ProgressEvent ):void
+		{
+
+			this.addChild(text_txt);
+
+			trace( "Socket received " + socket.bytesAvailable + " byte(s) of data:" );
+			// Loop over all of the received data, and only read a byte if there
+			// is one available
+
+			//13字元為一組
+			if (socket.bytesAvailable >= 13)
+			{
+				while ( socket.bytesAvailable )
+				{
+					//正規式確認格式
+					var pattern:RegExp = /RPM:0000\dA[+-]\d{2}/;
+					var string:String = socket.readUTFBytes(socket.bytesAvailable);
+					if (pattern.test(string))
+					{
+						//trace( string );
+						var strA:String = string.slice(8,9);
+						var strB:String = string.slice(10,13);
+						trace( strA );
+						trace( strB );
+						// Read a byte from the socket and display it
+						//var str:int = socket.readByte();
+						stage.frameRate = (int(string.slice(8,9)) * 12);
+						if ( "+" == string.slice(10, 11))
+						{
+							trace( "向右" + string.slice(11,13) );
+							if (1 <= but.scaleX && 10 >= but.scaleX )
+							{
+								but.scaleX = but.scaleX + 1;
+								but.scaleY = but.scaleY + 1;
+							}
+						}
+						else
+						{
+							trace( "向左" + string.slice(11,13) );
+							if (1 <= but.scaleX && 10 >= but.scaleX )
+							{
+								but.scaleX = but.scaleX - 1;
+								but.scaleY = but.scaleY - 1;
+							}
+						}
+
+					}
+				}
+			}
+		}
+	}
+}
