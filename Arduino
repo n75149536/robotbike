@@ -1,0 +1,92 @@
+#include <SoftwareSerial.h>
+#define Rx    2			   // DIN to pin 2
+#define Tx    3			   // DOUT to pin 3
+#define InPinA   8         //C腳踏車計速器
+#define InPinB   9         //B腳踏車計速器
+#define InPinC   10         //A腳踏車計速器
+
+SoftwareSerial Xbee (Rx, Tx);
+char bufString[10];        
+int num = 0;                
+int countA = 0;   
+int countB = 0;    
+int countC = 0;     
+int iscountA = false;    
+int iscountB = false;     
+int iscountC = false;  
+
+void setup(){
+  pinMode(InPinA, INPUT);     
+  pinMode(InPinB, INPUT);   
+  pinMode(InPinC, INPUT); 
+  Serial.begin(9600);        // Set to No line ending;
+  Xbee.begin(9600);		    //   type a char, then hit enter
+}
+void loop(){
+
+  if(Serial.available()) {
+    byte str = Serial.read();
+    if(str != 0){                 //判斷是否結束
+      bufString[num] = str;
+      num++;
+    }
+    else{
+      printSerialString();
+      num = 0;
+      countA = 0;
+      countB = 0;
+      countC = 0;
+    }
+  }
+  delay(10);  
+
+  if (digitalRead(InPinA) == HIGH && iscountA == true) {             
+    countA++;			                //A機圈數累加       
+    iscountA = false;      
+  }else{
+    iscountA = true;
+  }
+
+  if (digitalRead(InPinB) == HIGH) {             
+    countB++;			                //B機圈數累加              
+    iscountB = false;      
+  }else{
+    iscountB = true;
+  }
+
+  if (digitalRead(InPinC) == HIGH) {             
+    countC++;			                //C機圈數累加              
+    iscountC = false;      
+  }else{
+    iscountC = true;
+  }
+  delay(10);
+}
+
+void printSerialString() {
+
+  double allcount;	
+  allcount = countA + countB  + countC ;
+  if(0>=allcount){
+    Xbee.print("RPM:00000"); 
+  }
+  else if(1<allcount&&2>=allcount){
+    Xbee.print("RPM:00001"); 
+  }
+  else if(2<allcount&&3>=allcount){
+    Xbee.print("RPM:00002"); 
+  }
+  else if(3<allcount&&4>=allcount){
+    Xbee.print("RPM:00003"); 
+  }
+  else if(4<allcount){
+    Xbee.print("RPM:00004"); 
+  }
+
+  int i=0;
+  while(bufString[i] != 0) {
+    Xbee.write( bufString[i] );
+    bufString[i] = 0;               //清除內容
+    i++;          
+  }
+} 
