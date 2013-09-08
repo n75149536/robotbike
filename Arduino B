@@ -1,0 +1,132 @@
+#include <Wire.h>
+
+#define ADDRESS 0x60                          // Defines address of CMPS10
+int reference_angle;
+int bearing;  
+
+void setup(){
+
+  Serial.begin(9600);               // Set to No line ending;
+  Wire.begin();   
+  delay(500);
+  get_StartAngle();                //取得基準值
+}
+
+void loop(){
+
+  String angle;
+  int delta;
+  read_angle();
+  delta=(bearing-reference_angle+360)%360;  //計算角度變換(依基準腳)
+  if(delta>180){
+    delta=delta-360;          
+  }
+
+  if (delta>=1&delta<5){  //依照各狀態決定輸出值
+    angle = ("A+05");
+  }
+  else if(delta>5&delta<=10){
+    angle = ("A+10");
+  }
+  else if(delta>10&delta<=15){
+    angle = ("A+15");
+  }
+  else if(delta>15&delta<=20){
+    angle = ("A+20");
+  }
+  else if(delta>20&delta<=25){
+    angle = ("A+25");
+  }
+  else if(delta>25&delta<=30){
+    angle = ("A+30");
+  }
+  else if(delta>30&delta<=35){
+    angle = ("A+35");
+  }
+  else if(delta>35&delta<=40){
+    angle = ("A+40");
+  }
+  else if(delta>40&delta<=180){
+    angle = ("A+45");
+  }
+  else if(-5<delta&delta<=-1){
+    angle = ("A-05");
+  }
+  else if(-10<delta&delta<=-5){
+    angle = ("A-10");
+  }
+  else if(-15<delta&delta<=-10){
+    angle = ("A-15");
+  }
+  else if(-20<delta&delta<=-15){
+    angle = ("A-20");
+  }
+  else if(-25<delta&delta<=-20){
+    angle = ("A-25");
+  }
+  else if(-30<delta&delta<=-25){
+    angle = ("A-30");
+  }
+  else if(-35<delta&delta<=-30){
+    angle = ("A-35");
+  }
+  else if(-40<delta&delta<=-35){
+    angle = ("A-40");
+  }
+  else if(-179<delta&delta<=-40){
+    angle = ("A-45");
+  }
+  else if(delta==0){
+    angle = ("A+00");
+  }  
+  delay(100);   
+  Serial.print(angle);
+  Serial.write(0);                    //字串結束輸出
+  delay(1000);
+
+}
+
+int get_StartAngle(){
+  int base_count = 0,angle_buffer = 0,delta_angle = 0;
+  do{            //計算基準腳的角度
+    delay(50);
+    read_angle();  //讀取角度值
+    delta_angle=bearing-angle_buffer;
+    angle_buffer=bearing;
+    if(abs(delta_angle)<5){//當變動量小於五度時計數器+1
+      base_count++; 
+    }
+    else{
+      base_count=0;
+      Serial.println("NONE");
+    } 
+  }
+  while(base_count<50);  
+  reference_angle = bearing;
+  return(reference_angle);
+}
+
+int read_angle(){
+  byte highByte, lowByte;              // highByte and lowByte store high and low bytes of the bearing and fine stores decimal place of bearing
+  Wire.beginTransmission(ADDRESS);           //starts communication with CMPS09
+  Wire.write(2);                              //Sends the register we wish to start reading from
+  Wire.endTransmission();
+  Wire.requestFrom(ADDRESS, 4);              // Request 4 bytes from CMPS09
+  while(Wire.available() < 4);               // Wait for bytes to become available
+  highByte = Wire.read();           
+  lowByte = Wire.read();          
+  bearing = ((highByte<<8)+lowByte)/10;      // Calculate full bearing
+  return(bearing); 
+}
+
+int soft_ver(){
+  int data;                             // Software version of  CMPS09 is read into data and then returned   
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(0);                         // Sends the register we wish to start reading from
+  Wire.endTransmission();
+  Wire.requestFrom(ADDRESS, 1);        // Request byte from CMPS10
+  while(Wire.available() < 1);
+  data = Wire.read();             
+  return(data);
+}
+
