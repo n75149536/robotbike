@@ -1,0 +1,184 @@
+package java2flash;
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.regex.Pattern;
+
+import jssc.SerialPort;
+import jssc.SerialPortEvent;
+import jssc.SerialPortEventListener;
+import jssc.SerialPortException;
+
+public class Java2Flash {
+
+	/**
+	 * @param args
+	 */
+
+	static SerialPort serialPort;
+
+	private static final int PORT = 3000; // 端口号
+	private static ServerSocket server;
+	private static String matches = "RPM:0000[0-9]A[+-]\\d{2}";
+	static String outstr;
+	static boolean isOutPut;
+
+	public static void main(String[] args) {
+		// TODO 自動產生的方法 Stub
+		// new SocketClient();
+		initialize();
+		try {
+
+			serialPort.addEventListener(new SerialPortReader());
+			Thread thread = new Thread(new ChatTask(server.accept()));
+			// exec.execute(new ChatTask(server.accept()));
+			thread.start();
+		} catch (SerialPortException e1) {
+			// TODO 自動產生的 catch 區塊
+			e1.printStackTrace();
+
+		} catch (IOException e) {
+			// TODO 自動產生的 catch 區塊
+			e.printStackTrace();
+		}
+
+	}
+
+	static public void initialize() {
+		serialPort = new SerialPort("COM1");
+		try {
+			boolean b = serialPort.openPort();
+			serialPort.setParams(SerialPort.BAUDRATE_9600,
+					SerialPort.DATABITS_8, SerialPort.STOPBITS_1,
+					SerialPort.PARITY_NONE); // 波特率、数据位、停止位、奇偶
+
+			server = new ServerSocket(PORT);
+			System.out.println("Server init");
+
+		} catch (SerialPortException e) {
+			System.out.println(e);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	static class SerialPortReader implements SerialPortEventListener {
+		public void serialEvent(SerialPortEvent event) {
+			if (event.isRXCHAR()) { // If data is available
+				// System.out.println(event.getEventValue());
+				if (event.getEventValue() >= 13) {
+					/*
+					 * 接收的字元數
+					 */
+					try {
+						String str;
+						byte[] data = serialPort.readBytes(event
+								.getEventValue());
+						str = new String(data);
+						System.out.println("接收到" + data.length + "字元:" + str);
+
+						if (Pattern.matches(matches, str)) {
+							outstr = str;
+							isOutPut = true;
+						} else {
+							System.out.println("Port收到格式錯誤");
+						}
+
+					} catch (SerialPortException ex) {
+						System.out.println(ex);
+					}
+				}
+			} else if (event.isCTS()) {// If CTS line has changed state
+				if (event.getEventValue() == 1) {// If line is ON
+					System.out.println("CTS - ON");
+				} else {
+					System.out.println("CTS - OFF");
+				}
+			} else if (event.isDSR()) {// /If DSR line has changed state
+				if (event.getEventValue() == 1) {// If line is ON
+					System.out.println("DSR - ON");
+				} else {
+					System.out.println("DSR - OFF");
+				}
+			}
+		}
+	}
+
+	static class ChatTask implements Runnable {
+		private Socket socket;
+
+		ChatTask(Socket socket) {
+			this.socket = socket;
+		}
+
+		@Override
+		public void run() {
+
+			PrintWriter pw = null;
+			try {
+				pw = new PrintWriter(socket.getOutputStream(), true);
+				while (true) {
+					if (Java2Flash.isOutPut) {
+						Java2Flash.isOutPut = false;
+						pw.print(Java2Flash.outstr);
+						pw.flush();
+					}
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				if (socket != null)
+					try {
+						socket.close();
+					} catch (IOException e) {
+						// TODO 自動產生的 catch 區塊
+						e.printStackTrace();
+					}
+				if (pw != null)
+					pw.close();
+			}
+
+		}
+	}
+
+}
+
+class SocketClient {
+	private String address = "127.0.0.1";// 連線的ip
+	private int port = 5331;// 連線的port
+
+	public SocketClient() {
+
+		Socket client = new Socket();
+		InetSocketAddress isa = new InetSocketAddress(this.address, this.port);
+		try {
+			while (true) {
+				client.connect(isa, 10000);
+				BufferedInputStream in = new BufferedInputStream(
+						client.getInputStream());
+				// 送出字串
+				byte[] bytes = new byte[9999];
+				String data = null;
+				int length;
+				while ((length = in.read(bytes)) > 0)// <=0的話就是結束了
+				{
+					data += new String(bytes, 0, length);
+					System.out.println("取得的值:" + data);
+				}
+
+			}
+
+		} catch (java.io.IOException e) {
+			System.out.println("Socket連線有問題 !");
+			System.out.println("IOException :" + e.toString());
+		}
+	}
+}
